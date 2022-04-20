@@ -56,20 +56,53 @@ if(!shell.which('vercel'))
 
 
 
-let templateUrl = 'https://github.com/droplab/droplab-site-templates.git';
+
+let username = '';
+
+// extract required userid from arguments
+//
+	if(args.length)
+	{
+		args.forEach((v,i) =>
+		{
+			if(v.indexOf('--user=') !== -1)
+			{
+				username = v.split('--user=')[1];
+				args.splice(i,1);
+			}
+		})
+	}
+
+	if(!username || username === '') 
+	{
+		spinner.stopAndPersist({
+			symbol: '🔒',
+			text: `${chalk.red(`Please add a ${chalk.white(`--user=<my-github-user-id>`)} argument to access the private repo.`)}`
+		});
+		
+		shell.echo(`\n`);
+		shell.exit(1);
+	}
+
+
+
+let templateUrl = `https://${username ? `${username}@` : ''}github.com/droplab/droplab-site-templates.git`;
 let destFolder = '.';
+let destFolderName = '';
 let projectName = 'my-project';
+
 
 const cloneRepo = (dir,repo) => 
 {
 	return new Promise((resolve,reject) => 
 	{
 		shell.exec(`git clone ${repo} ${dir} -q`,
+			{ silent:true },
 			(code, stdout, stderr) =>
 			{
 				if(code !== 0) 
 				{
-					reject(new Error('Git clone failed'));
+					reject(new Error(stderr));
 					return;
 				}
 
@@ -79,7 +112,7 @@ const cloneRepo = (dir,repo) =>
 	})
 	.catch(err => 
 	{
-		shell.echo(`Error: ${err.message}`);
+		shell.echo(`\n\n` + chalk.red(`💀 ${err.message}\n`));
 		shell.exit(1);
 	});
 }
@@ -115,7 +148,7 @@ const cloneEnvFile = (templateFile,outputFile,projectName) =>
 	})
 	.catch(err => 
 	{
-		shell.echo(`Error: ${err.message}`);
+		shell.echo(`\n\n` + chalk.red(`💀 ${err.message}\n`));
 		shell.exit(1);
 	});
 }
@@ -139,8 +172,8 @@ const installDependencies = () =>
 	})
 	.catch(err => 
 	{
-		shell.echo(`Error: ${err.message}`)
-		shell.exit(1)
+		shell.echo(`\n\n` + chalk.red(`💀 ${err.message}\n`));
+		shell.exit(1);
 	});
 }
 
@@ -169,6 +202,7 @@ switch(args.length)
 	break;
 	case 2:
 
+		
 		let v1 = args[0];
 		let v2 = args[1];
 		
@@ -178,14 +212,15 @@ switch(args.length)
 	break;
 }
 
-projectName = _.kebabCase(path.basename(path.resolve(destFolder)));
-
+templateUrl = `https://${username ? `${username}@` : ''}github.com/droplab/droplab-site-templates.git`;
+destFolderName = path.basename(path.resolve(destFolder));
+projectName = _.kebabCase(destFolderName);
 
 
 try 
 {
 	spinner.color = 'green';
-	spinner.text = `Scaffolding project from ${chalk.cyan.bold(templateUrl)} into ${chalk.magenta.bold(destFolder)}...`;
+	spinner.text = `Scaffolding project from ${chalk.cyan.bold(templateUrl)} into ${chalk.magenta.bold(destFolder === '.' ? `./${destFolderName}` : destFolder)}...`;
 
 	const { code,stdout,stderr} = await cloneRepo(destFolder,templateUrl);
 
