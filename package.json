@@ -1,0 +1,29 @@
+{
+  "name": "create-droplab-app",
+  "version": "1.0.0",
+  "description": "",
+  "exports": "./index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "create-droplab-app": "bin/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://droplab@github.com/droplab/create-droplab-app.git"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/droplab/create-droplab-app/issues"
+  },
+  "homepage": "https://github.com/droplab/create-droplab-app#readme",
+  "dependencies": {
+    "chalk": "^5.0.1",
+    "figlet": "^1.5.2",
+    "inquirer": "^8.2.2",
+    "shelljs": "^0.8.5"
+  }
+}
