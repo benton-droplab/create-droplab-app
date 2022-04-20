@@ -57,7 +57,9 @@ if(!shell.which('vercel'))
 
 
 
+let _args = []
 let username = '';
+let token = '';
 
 // extract required userid from arguments
 //
@@ -68,28 +70,38 @@ let username = '';
 			if(v.indexOf('--user=') !== -1)
 			{
 				username = v.split('--user=')[1];
-				args.splice(i,1);
+			}
+			else if(v.indexOf('--token=') !== -1)
+			{
+				token = v.split('--token=')[1];
+			}
+			else if(v.indexOf('--password=') !== -1)
+			{
+				token = v.split('--password=')[1];
+			}
+			else
+			{
+				_args.push(v);
 			}
 		})
 	}
 
-	if(!username || username === '') 
+	if(username && !token) 
 	{
 		spinner.stopAndPersist({
 			symbol: '🔒',
-			text: `${chalk.red(`Please add a ${chalk.white(`--user=<my-github-user-id>`)} argument to access the private repo.`)}`
+			text: `${chalk.red(`Please add both ${chalk.bgRed.white(`--user=<my-github-user-id>`)} and ${chalk.bgRed.white(`--token=<my-github-personal-access-token>`)} arguments when specifying a specific user to authenticat as...`)}`
 		});
 		
 		shell.echo(`\n`);
 		shell.exit(1);
 	}
 
-
-
-let templateUrl = `https://${username ? `${username}@` : ''}github.com/droplab/droplab-site-templates.git`;
+let templateUrl = `https://${username ? `${username}` : ''}${token ? `:${token}@` : `@`}github.com/droplab/droplab-site-templates.git`;
 let destFolder = '.';
 let destFolderName = '';
 let projectName = 'my-project';
+
 
 
 const cloneRepo = (dir,repo) => 
@@ -178,11 +190,13 @@ const installDependencies = () =>
 }
 
 
-switch(args.length)
+
+
+switch(_args.length)
 {
 	case 1:
 
-		let v = args[0];
+		let v = _args[0];
 		
 		switch(true)
 		{
@@ -203,8 +217,8 @@ switch(args.length)
 	case 2:
 
 		
-		let v1 = args[0];
-		let v2 = args[1];
+		let v1 = _args[0];
+		let v2 = _args[1];
 		
 		templateUrl = v1;
 		destFolder = v2;
@@ -212,7 +226,6 @@ switch(args.length)
 	break;
 }
 
-templateUrl = `https://${username ? `${username}@` : ''}github.com/droplab/droplab-site-templates.git`;
 destFolderName = path.basename(path.resolve(destFolder));
 projectName = _.kebabCase(destFolderName);
 
@@ -220,7 +233,7 @@ projectName = _.kebabCase(destFolderName);
 try 
 {
 	spinner.color = 'green';
-	spinner.text = `Scaffolding project from ${chalk.cyan.bold(templateUrl)} into ${chalk.magenta.bold(destFolder === '.' ? `./${destFolderName}` : destFolder)}...`;
+	spinner.text = `Scaffolding template into ${chalk.magenta.bold(destFolder === '.' ? `./${destFolderName}` : destFolder)}...`;
 
 	const { code,stdout,stderr} = await cloneRepo(destFolder,templateUrl);
 
