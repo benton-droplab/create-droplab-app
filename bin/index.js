@@ -8,9 +8,12 @@ const _ = (await import('lodash')).default;
 const spinners = (await import('cli-spinners')).default;
 const ora = (await import('ora')).default;
 const updateNotifier = (await import('update-notifier')).default;
+const fetch = (await import('node-fetch')).default;
+const { FormData } = (await import('formdata-node'));
 
 const { createRequire } = (await import('module'));
 const require = createRequire(import.meta.url);
+const { stubObject } = require('lodash');
 const pkg = require('../package.json');
 
 // const inquirer = (await import('inquirer')).default;
@@ -19,7 +22,8 @@ const pkg = require('../package.json');
 const args = process.argv.slice(2);
 const log = console.log;
 
-updateNotifier({pkg}).notify();
+updateNotifier({ pkg }).notify();
+
 
 
 shell.echo(`\n`);
@@ -32,77 +36,76 @@ const spinner = ora({
 
 
 
-if(!shell.which('git')) 
+const authenticate = () =>
 {
-	spinner.stopAndPersist({
-		symbol: '💀',
-		text: `${chalk.red(`Sorry, this script requires ${chalk.underline.bold(`git`)}. Please install before proceeding -> ${chalk.underline(`https://github.com/git-guides/install-git`)}`)}`
-	});
-	
-	shell.echo(`\n`);
-	shell.exit(1);
-}
-
-if(!shell.which('vercel')) 
-{
-	spinner.stopAndPersist({
-		symbol: '💀',
-		text: `${chalk.red(`Sorry, this script requires ${chalk.underline.bold(`vercel cli`)}. Please install before proceeding via `) + chalk.bgRed.white(`npm i -g vercel`)}`
-	});
-	
-	shell.echo(`\n`);
-	shell.exit(1);
-}
-
-
-
-
-let _args = []
-let username = '';
-let token = '';
-
-// extract required userid from arguments
-//
-	if(args.length)
+	return new Promise(async (resolve,reject) =>
 	{
-		args.forEach((v,i) =>
-		{
-			if(v.indexOf('--user=') !== -1)
-			{
-				username = v.split('--user=')[1];
-			}
-			else if(v.indexOf('--token=') !== -1)
-			{
-				token = v.split('--token=')[1];
-			}
-			else if(v.indexOf('--password=') !== -1)
-			{
-				token = v.split('--password=')[1];
-			}
-			else
-			{
-				_args.push(v);
-			}
-		})
-	}
+		const form = new FormData();
+		form.set('client_id', '22887034ed1606286613');
+		form.set('scope', 'user,repo'); //repo');
 
-	if(username && !token) 
-	{
-		spinner.stopAndPersist({
-			symbol: '🔒',
-			text: `${chalk.red(`Please add both ${chalk.bgRed.white(`--user=<my-github-user-id>`)} and ${chalk.bgRed.white(`--token=<my-github-personal-access-token>`)} arguments when specifying a specific user to authenticat as...`)}`
-		});
+		let res;
 		
-		shell.echo(`\n`);
-		shell.exit(1);
-	}
+		try 
+		{
+			res = await fetch(
+				'https://github.com/login/device/code', 
+				{ 
+					method:'POST',
+					headers: 
+					{
+						//'Content-Type': 'application/json',
+						'Accept': 'application/json'
+					},
+					body: form
+				}
+			)
 
-let templateUrl = `https://${username ? `${username}` : ''}${token ? `:${token}@` : `@`}github.com/droplab/droplab-site-templates.git`;
-let destFolder = '.';
-let destFolderName = '';
-let projectName = 'my-project';
+			const json = await res.json();
 
+			if(json?.user_code)
+			{
+				spinner.text = `Enter the following user code: ${chalk.bold(json?.user_code)}`;
+				
+				const form2 = new FormData();
+				form2.set('client_id', '22887034ed1606286613');
+				form2.set('device_code', json?.device_code);
+				form2.set('grant_type','urn:ietf:params:oauth:grant-type:device_code')
+		
+				timer = setInterval(async () =>
+				{
+					const res2 = await fetch(
+						'https://github.com/login/oauth/access_token',
+						{
+							method:'POST',
+							headers: 
+							{
+								//'Content-Type': 'application/json',
+								'Accept': 'application/json'
+							},
+							body: form2
+						}
+					);
 
+					const json2 = await res2.json();
+
+					if(json2?.access_token)
+					{
+						resolve({ json:json2, access_token: json2?.access_token });
+					}
+
+				},5000);
+			}
+
+			shell.exec(`open https://github.com/login/device`);
+		}
+		catch(err)
+		{
+			//console.log('ERROR',err);
+			reject(err)	
+		}
+	})
+}
 
 const cloneRepo = (dir,repo) => 
 {
@@ -192,6 +195,97 @@ const installDependencies = () =>
 
 
 
+
+
+
+
+
+
+
+if(!shell.which('git')) 
+{
+	spinner.stopAndPersist({
+		symbol: '💀',
+		text: `${chalk.red(`Sorry, this script requires ${chalk.underline.bold(`git`)}. Please install before proceeding -> ${chalk.underline(`https://github.com/git-guides/install-git`)}`)}`
+	});
+	
+	shell.echo(`\n`);
+	shell.exit(1);
+}
+
+if(!shell.which('vercel')) 
+{
+	spinner.stopAndPersist({
+		symbol: '💀',
+		text: `${chalk.red(`Sorry, this script requires ${chalk.underline.bold(`vercel cli`)}. Please install before proceeding via `) + chalk.bgRed.white(`npm i -g vercel`)}`
+	});
+	
+	shell.echo(`\n`);
+	shell.exit(1);
+}
+
+
+
+
+let _args = []
+let username = '';
+let token = '';
+
+// extract required userid from arguments
+//
+	if(args.length)
+	{
+		args.forEach((v,i) =>
+		{
+			if(v.indexOf('--user=') !== -1)
+			{
+				username = v.split('--user=')[1];
+			}
+			else if(v.indexOf('--token=') !== -1)
+			{
+				token = v.split('--token=')[1];
+			}
+			else if(v.indexOf('--password=') !== -1)
+			{
+				token = v.split('--password=')[1];
+			}
+			else
+			{
+				_args.push(v);
+			}
+		})
+	}
+
+	//if(username && !token) 
+	if(!username)
+	{
+		spinner.stopAndPersist({
+			symbol: '🔒',
+			text: `${chalk.red(`Please add a ${chalk.bgRed.white(`--user=<my-github-user-id>`)} argument to specifiy which user to authenticate as...`)}`
+		});
+		
+		shell.echo(`\n`);
+		shell.exit(1);
+	}
+
+
+let timer;
+const { json,access_token } = await authenticate();
+
+if(timer)
+	clearTimeout(timer);
+
+	
+let templateUrl = `https://${username ? `${username}` : ''}${access_token ? `:${access_token}@` : `@`}github.com/droplab/droplab-site-templates.git`;
+let destFolder = '.';
+let destFolderName = '';
+let projectName = 'my-project';
+
+
+
+
+
+
 switch(_args.length)
 {
 	case 1:
@@ -232,6 +326,7 @@ projectName = _.kebabCase(destFolderName);
 
 try 
 {
+	
 	spinner.color = 'green';
 	spinner.text = `Scaffolding template into ${chalk.magenta.bold(destFolder === '.' ? `./${destFolderName}` : destFolder)}...`;
 
