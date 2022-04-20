@@ -7,12 +7,19 @@ const shell = (await import('shelljs')).default;
 const _ = (await import('lodash')).default;
 const spinners = (await import('cli-spinners')).default;
 const ora = (await import('ora')).default;
+const updateNotifier = (await import('update-notifier')).default;
+
+const { createRequire } = (await import('module'));
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
 // const inquirer = (await import('inquirer')).default;
 // const figlet = (await import('figlet')).default;
 
 const args = process.argv.slice(2);
 const log = console.log;
 
+updateNotifier({pkg}).notify();
 
 
 shell.echo(`\n`);
