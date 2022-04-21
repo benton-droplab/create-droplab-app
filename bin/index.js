@@ -20,6 +20,10 @@ const pkg = require('../package.json');
 
 const args = process.argv.slice(2);
 
+const GITHUB_APP_ID = '22887034ed1606286613';
+const GITHUB_APP_SCOPE = 'repo';
+const GITHUB_APP_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
+
 updateNotifier({ pkg }).notify();
 
 
@@ -41,8 +45,8 @@ const authenticate = () =>
 		try 
 		{
 			const form = new FormData();
-			form.set('client_id', '22887034ed1606286613');
-			form.set('scope', 'repo');
+			form.set('client_id', GITHUB_APP_ID);
+			form.set('scope', GITHUB_APP_SCOPE);
 		
 			const res = await fetch(
 				'https://github.com/login/device/code', 
@@ -64,18 +68,18 @@ const authenticate = () =>
 
 				await clipboardy.write(json?.user_code); // copy to clipboard
 
-				// open login window
+				// Give this some time on the screen to be read... and then open login window
 				//
 					setTimeout(() => 
 					{
 						shell.exec(`open https://github.com/login/device`);
 
-					},1500);
+					},3000);
 
 				const form2 = new FormData();
-				form2.set('client_id', '22887034ed1606286613');
+				form2.set('client_id', GITHUB_APP_ID);
 				form2.set('device_code', json?.device_code);
-				form2.set('grant_type','urn:ietf:params:oauth:grant-type:device_code')
+				form2.set('grant_type', GITHUB_APP_GRANT_TYPE)
 				
 				// poll for user auth response...
 				//
@@ -99,7 +103,6 @@ const authenticate = () =>
 								method:'POST',
 								headers: 
 								{
-									//'Content-Type': 'application/json',
 									'Accept': 'application/json'
 								},
 								body: form2
@@ -192,6 +195,8 @@ const cloneEnvFile = (templateFile,outputFile,projectName) =>
 			}, 
 			(error,results) => 
 			{
+				// Give this some time on the screen to be read...
+				//
 				setTimeout(() =>
 				{
 					if(error) 
@@ -239,10 +244,6 @@ const installDependencies = (destFolder) =>
 		shell.exit(1);
 	});
 }
-
-
-
-
 
 
 
