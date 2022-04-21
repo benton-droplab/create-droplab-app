@@ -13,7 +13,7 @@ const { FormData } = (await import('formdata-node'));
 
 const { createRequire } = (await import('module'));
 const require = createRequire(import.meta.url);
-const { stubObject } = require('lodash');
+const clipboardy = (await import('clipboardy')).default;
 const pkg = require('../package.json');
 
 // const inquirer = (await import('inquirer')).default;
@@ -40,21 +40,18 @@ const authenticate = () =>
 {
 	return new Promise(async (resolve,reject) =>
 	{
-		const form = new FormData();
-		form.set('client_id', '22887034ed1606286613');
-		form.set('scope', 'user,repo'); //repo');
-
-		let res;
-		
 		try 
 		{
-			res = await fetch(
+			const form = new FormData();
+			form.set('client_id', '22887034ed1606286613');
+			form.set('scope', 'repo');
+		
+			const res = await fetch(
 				'https://github.com/login/device/code', 
 				{ 
 					method:'POST',
 					headers: 
 					{
-						//'Content-Type': 'application/json',
 						'Accept': 'application/json'
 					},
 					body: form
@@ -65,44 +62,80 @@ const authenticate = () =>
 
 			if(json?.user_code)
 			{
-				spinner.text = `Enter the following user code: ${chalk.bold(json?.user_code)}`;
-				
+				spinner.text = `Paste the following code in the window that opens: ${chalk.bold(json?.user_code)}`;
+
+				await clipboardy.write(json?.user_code); // copy to clipboard
+
+				// open login window
+				//
+					setTimeout(() => shell.exec(`open https://github.com/login/device`),1500);
+
 				const form2 = new FormData();
 				form2.set('client_id', '22887034ed1606286613');
 				form2.set('device_code', json?.device_code);
 				form2.set('grant_type','urn:ietf:params:oauth:grant-type:device_code')
-		
-				timer = setInterval(async () =>
-				{
-					const res2 = await fetch(
-						'https://github.com/login/oauth/access_token',
-						{
-							method:'POST',
-							headers: 
-							{
-								//'Content-Type': 'application/json',
-								'Accept': 'application/json'
-							},
-							body: form2
-						}
-					);
-
-					const json2 = await res2.json();
-
-					if(json2?.access_token)
+				
+				// poll for user auth response...
+				//
+					let loops = 0;
+					let interval = parseInt(json?.interval);
+					let timer;
+					
+					const checkAuth = async () =>
 					{
-						resolve({ json:json2, access_token: json2?.access_token });
+						spinner.color = 'yellow';
+						spinner.text = `Waiting for user to authenticate...`;
+						
+						loops++;
+
+						if(loops >= 90)
+						{
+							reject(`Authentication timed out`);
+							return;
+						}
+						
+						const res2 = await fetch(
+							'https://github.com/login/oauth/access_token',
+							{
+								method:'POST',
+								headers: 
+								{
+									//'Content-Type': 'application/json',
+									'Accept': 'application/json'
+								},
+								body: form2
+							}
+						);
+
+						const json2 = await res2.json();
+
+						//console.log(json2);
+
+						if(json2?.access_token)
+						{
+							clearTimeout(timer);
+							
+							spinner.color = 'green';
+							spinner.text = `Authenticated!`;
+							
+							resolve({ json:json2, access_token: json2?.access_token });
+						}
+						else
+						{
+							if(json2?.interval)
+								interval = parseInt(json2?.interval);
+
+							timer = setTimeout(checkAuth,interval * 1000);
+						}
 					}
-
-				},5000);
+					
+					timer = setTimeout(checkAuth,interval * 1000);
 			}
-
-			shell.exec(`open https://github.com/login/device`);
 		}
 		catch(err)
 		{
 			//console.log('ERROR',err);
-			reject(err)	
+			reject(err);
 		}
 	})
 }
@@ -168,7 +201,7 @@ const cloneEnvFile = (templateFile,outputFile,projectName) =>
 	});
 }
 
-const installDependencies = () => 
+const installDependencies = (destFolder) => 
 {
 	return new Promise((resolve,reject) => 
 	{
@@ -269,68 +302,59 @@ let token = '';
 	}
 
 
-let timer;
-const { json,access_token } = await authenticate();
-
-if(timer)
-	clearTimeout(timer);
-
-	
-let templateUrl = `https://${username ? `${username}` : ''}${access_token ? `:${access_token}@` : `@`}github.com/droplab/droplab-site-templates.git`;
-let destFolder = '.';
-let destFolderName = '';
-let projectName = 'my-project';
-
-
-
-
-
-
-switch(_args.length)
-{
-	case 1:
-
-		let v = _args[0];
-		
-		switch(true)
-		{
-			case v.indexOf('http') !== -1:
-
-				templateUrl = v;
-
-			break;
-			default:
-
-				destFolder = v;
-
-			break;
-		}
-
-
-	break;
-	case 2:
-
-		
-		let v1 = _args[0];
-		let v2 = _args[1];
-		
-		templateUrl = v1;
-		destFolder = v2;
-
-	break;
-}
-
-destFolderName = path.basename(path.resolve(destFolder));
-projectName = _.kebabCase(destFolderName);
-
 
 try 
 {
 	
+	const { json,access_token } = await authenticate();
+
+		
+	let templateUrl = `https://${username ? `${username}` : ''}${access_token ? `:${access_token}@` : `@`}github.com/droplab/droplab-site-templates.git`;
+	let destFolder = '.';
+	let destFolderName = '';
+	let projectName = 'my-project';
+
+	switch(_args.length)
+	{
+		case 1:
+
+			let v = _args[0];
+			
+			switch(true)
+			{
+				case v.indexOf('http') !== -1:
+
+					templateUrl = v;
+
+				break;
+				default:
+
+					destFolder = v;
+
+				break;
+			}
+
+
+		break;
+		case 2:
+
+			
+			let v1 = _args[0];
+			let v2 = _args[1];
+			
+			templateUrl = v1;
+			destFolder = v2;
+
+		break;
+	}
+
+	destFolderName = path.basename(path.resolve(destFolder));
+	projectName = _.kebabCase(destFolderName);
+
 	spinner.color = 'green';
 	spinner.text = `Scaffolding template into ${chalk.magenta.bold(destFolder === '.' ? `./${destFolderName}` : destFolder)}...`;
 
-	const { code,stdout,stderr} = await cloneRepo(destFolder,templateUrl);
+	const { code,stderr} = await cloneRepo(destFolder,templateUrl);
 
 	if(code === 0)
 	{
@@ -353,7 +377,7 @@ try
 			spinner.color = 'cyan';
 			spinner.text = `${chalk.cyan(`Installing dependencies...`)}`;
 
-			const { code3,stdout3,stderr3 } = await installDependencies();
+			await installDependencies(destFolder);
 
 		spinner.stopAndPersist({
 			symbol: '✨',
