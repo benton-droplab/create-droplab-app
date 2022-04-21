@@ -68,7 +68,11 @@ const authenticate = () =>
 
 				// open login window
 				//
-					setTimeout(() => shell.exec(`open https://github.com/login/device`),1500);
+					setTimeout(() => 
+					{
+						shell.exec(`open https://github.com/login/device`);
+
+					},1500);
 
 				const form2 = new FormData();
 				form2.set('client_id', '22887034ed1606286613');
@@ -83,9 +87,6 @@ const authenticate = () =>
 					
 					const checkAuth = async () =>
 					{
-						spinner.color = 'yellow';
-						spinner.text = `Waiting for user to authenticate...`;
-						
 						loops++;
 
 						if(loops >= 90)
@@ -122,10 +123,26 @@ const authenticate = () =>
 						}
 						else
 						{
-							if(json2?.interval)
-								interval = parseInt(json2?.interval);
+							if(json2?.access_denied)
+							{
+								spinner.color = 'red';
+								spinner.text = `User denied authentication`;
 
-							timer = setTimeout(checkAuth,interval * 1000);
+								reject(err);
+							}
+							else
+							{
+								if(json2?.authorization_pending)
+								{
+									spinner.color = 'yellow';
+									spinner.text = `Waiting for user to authenticate...`;
+								}
+
+								if(json2?.interval)
+									interval = parseInt(json2?.interval);
+
+								timer = setTimeout(checkAuth,interval * 1000);
+							}
 						}
 					}
 					
@@ -261,7 +278,7 @@ if(!shell.which('vercel'))
 
 
 let _args = []
-let username = '';
+let username = 'git'; // using the github oauuth device flow, we can use anything for the username... but we need SOMETHING to form the repo url correctly.
 let token = '';
 
 // extract required userid from arguments
