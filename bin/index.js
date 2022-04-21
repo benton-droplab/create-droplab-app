@@ -5,7 +5,6 @@ const replace = (await import('replace-in-file')).default;
 const chalk = (await import('chalk')).default;
 const shell = (await import('shelljs')).default;
 const _ = (await import('lodash')).default;
-const spinners = (await import('cli-spinners')).default;
 const ora = (await import('ora')).default;
 const updateNotifier = (await import('update-notifier')).default;
 const fetch = (await import('node-fetch')).default;
@@ -20,7 +19,6 @@ const pkg = require('../package.json');
 // const figlet = (await import('figlet')).default;
 
 const args = process.argv.slice(2);
-const log = console.log;
 
 updateNotifier({ pkg }).notify();
 
@@ -279,7 +277,6 @@ if(!shell.which('vercel'))
 
 let _args = []
 let username = 'git'; // using the github oauuth device flow, we can use anything for the username... but we need SOMETHING to form the repo url correctly.
-let token = '';
 
 // extract required userid from arguments
 //
@@ -323,7 +320,7 @@ let token = '';
 try 
 {
 	
-	const { json,access_token } = await authenticate();
+	const { access_token } = await authenticate();
 
 		
 	let templateUrl = `https://${username ? `${username}` : ''}${access_token ? `:${access_token}@` : `@`}github.com/droplab/droplab-site-templates.git`;
